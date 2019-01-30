@@ -5,6 +5,7 @@
 !.gitignore
 !Vagrantfile
 !server_provision.sh
+!README.md
 
 # .... Even if they are in subdirectories
 !*/
