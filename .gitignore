@@ -1,0 +1,11 @@
+# Ignore Everything
+*
+
+# Except....
+!.gitignore
+!Vagrantfile
+!server_provision.sh
+
+# .... Even if they are in subdirectories
+!*/
+
