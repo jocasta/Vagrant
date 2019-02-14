@@ -10,7 +10,7 @@ chmod 777 /home/vagrant
 yum -y install https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm  epel-release
 
 ## INSTALL UTILITIES
-yum -y install vim
+yum -y install vim ntp
 
 ## INSTALL POSTGRES
 yum -y install postgresql10 postgresql10-server postgresql10-libs postgresql10-contrib postgresql10-devel
@@ -19,21 +19,30 @@ yum -y install postgresql10 postgresql10-server postgresql10-libs postgresql10-c
 yum -y install repmgr10
 
 ## CHANGE DEFAULT DATA DIRECTORY
-mkdir -p /db/postgresql/10/
+mkdir -p /db/postgresql/10/data
 chown -R postgres:postgres /db
 chmod -R 0700 /db
 
 
 ## CREATE LOG FILE LOCATION
 mkdir -p /log/postgresql/10
+mkdir -p /log/repmgr/10
+touch /log/repmgr/10/repmgr_event_notification.log
 chown -R postgres:postgres /log
 chmod -R 0744 /log
 
 
-## CREATE OVERIDING SYSTEMD FILE
+## CREATE OVERIDING SYSTEMD FILE > POSTGRESQL
 echo ".include /lib/systemd/system/postgresql-10.service
 [Service]
-Environment=PGDATA=/db/postgresql/10" >> /etc/systemd/system/postgresql-10.service
+Environment=PGDATA=/db/postgresql/10/data" >> /etc/systemd/system/postgresql-10.service
+
+## CREATE OVERIDING SYSTEMD FILE > REPMGR
+echo ".include /lib/systemd/system/repmgr10.service
+[Service]
+Environment=REPMGRDCONF=/etc/repmgr.conf" >> /etc/systemd/system/repmgr10.service
+
+
 
 ## INITIALISE POSTGRES
 /usr/pgsql-10/bin/postgresql-10-setup initdb
@@ -43,7 +52,8 @@ echo "
 ## UPDATED SETTINGS
 listen_addresses = '*'
 archive_mode = on
-archive_command = '/bin/true' " >> /db/postgresql/10/postgresql.conf
+archive_command = '/bin/true'
+shared_preload_libraries = 'repmgr'" >> /db/postgresql/10/data/postgresql.conf
 
 ## UPDATE pg_hba.conf
 echo "
@@ -58,7 +68,7 @@ local   repmgr        repmgr                         trust
 host    repmgr        repmgr    192.168.56.101/32    trust
 host    repmgr        repmgr    192.168.56.102/32    trust
 host    repmgr	      repmgr    192.168.56.103/32    trust
-host    repmgr        repmgr    192.168.56.104/32    trust" >> /db/postgresql/10/pg_hba.conf
+host    repmgr        repmgr    192.168.56.104/32    trust" >> /db/postgresql/10/data/pg_hba.conf
 
 
 ## UPDATE HOSTS FILE
@@ -81,7 +91,7 @@ set -o vi
 export PATH=/usr/pgsql-10/bin:/usr/pgsql-10/lib:/usr/bin:/bin:/sbin:/usr/sbin:/usr/local/bin:$HOME/bin:
 ## PostgreSQL data location
 export PGPORT=5432
-export PGDATA=/db/postgresql/10
+export PGDATA=/db/postgresql/10/data
 export PS1=\$LOGNAME:'\$PWD>'
 " >> /var/lib/pgsql/.pgsql_profile
 chown postgres:postgres /var/lib/pgsql/.pgsql_profile
@@ -103,28 +113,65 @@ fi
 
 ## ADD REPMGR USER, DATABASE and CONFIG FILE
 
-touch /etc/repmgr.conf
-chown postgres:postgres /etc/repmgr.conf
+sudo -u postgres -H bash << EOF  >> /etc/repmgr.conf
 
-sudo -u postgres -H bash << EOF
-
-# Put your current script commands here
+# USER DEFINED REPMGR SETTINGS
 
 echo "node_id=$1
 node_name=node-$1
 conninfo='host=192.168.56.10$1 user=repmgr dbname=repmgr connect_timeout=2'
-data_directory='/db/postgresql/10'
+data_directory='/db/postgresql/10/data'
 pg_bindir='/usr/pgsql-10/bin'
 use_replication_slots=true
 
-log_file=/log/postgresql/repmgr.log
+log_file=/log/repmgr/10/repmgr.log
 
 service_start_command = 'sudo systemctl start postgresql-10'
 service_stop_command = 'sudo systemctl stop postgresql-10'
 service_restart_command = 'sudo systemctl restart postgresql-10'
-service_reload_command = 'sudo systemctl reload postgresql-10' " >> /etc/repmgr.conf
+service_reload_command = 'sudo systemctl reload postgresql-10'
+
+## repmgrd ########
+failover=automatic
+promote_command='/usr/pgsql-10/bin/repmgr standby promote --verbose --log-to-file'
+follow_command='/usr/pgsql-10/bin/repmgr standby follow --verbose  --log-to-file --upstream-node-id=%n'
+monitoring_history=yes
+monitor_interval_secs=5  ## default 2
+
+event_notification_command='/etc/repmgr/scripts/repmgr_event_notification.sh %n %e %s \"%t\" \"%d\" %p \"%c\" \"%a\" ' " 
 
 EOF
+
+chown postgres:postgres /etc/repmgr.conf
+
+############################################
+
+
+## ADD Event Notification Script for REPMGR
+mkdir /etc/repmgr/scripts
+cat << 'EOF' > /etc/repmgr/scripts/repmgr_event_notification.sh
+#!/bin/bash
+
+echo "$1 $2 $3 $4 $5 $6 $7 $8 $9" >> /log/repmgr/10/repmgr_event_notification.log
+
+EOF
+
+chmod 744 /etc/repmgr/scripts/repmgr_event_notification.sh
+chown -R postgres:postgres /etc/repmgr/
+
+
+## INSERT LOGROTATE FILE FOR REPMGR.LOG
+cat << EOF > /etc/logrotate.d/repmgr
+/log/repmgr/10/repmgr.log {
+	missingok
+        compress
+        rotate 52
+        maxsize 100M
+        weekly
+        create 0600 postgres postgres
+    }
+EOF
+
 
 
 ## ALLOW SYSTEMD PERMISSIONS FOR REPMGR / POSTGRES
@@ -221,6 +268,15 @@ chmod 400 /var/lib/pgsql/.ssh/config
 sudo /sbin/restorecon -r /var/lib/pgsql/.ssh
 
 
+## SYNC THE SERVER CLOCK
+systemctl enable ntpd
+ntpdate pool.ntp.org
+systemctl start ntpd
+
+
+## ENABLE REPMGRD - START MONITORING TOOL
+systemctl enable repmgr10
+systemctl start repmgr10
 
 
 exit
