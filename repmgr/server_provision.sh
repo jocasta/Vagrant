@@ -53,22 +53,87 @@ echo "
 listen_addresses = '*'
 archive_mode = on
 archive_command = '/bin/true'
+ssl = on
 shared_preload_libraries = 'repmgr'" >> /db/postgresql/10/data/postgresql.conf
 
-## UPDATE pg_hba.conf
+################################################################################################
+## CREATE SSL CERTIFICATES (self-signed RootCA + Server) 
+################################################################################################
+
+## CREATE CA DIRECTORY #######################
+mkdir /root/ssl
+
+## rootCA.key
+openssl genrsa -out /root/ssl/mike-rootCA.key 2048
+chmod 640 /root/ssl/mike-rootCA.key
+
+## rootCA.crt
+openssl req -x509 -new -key /root/ssl/mike-rootCA.key -days 10000 -subj "/C=UK/ST=Scotland/L=Edinburgh/O=test/CN=node-$1"  -out /root/ssl/mike-rootCA.crt
+
+
+### CONFIGURE POSTGRESQL SERVER (as user postgres)  #####
+
+## Create postgres server key and signing request
+openssl req -new -nodes -text -out /db/postgresql/10/data/server.csr -keyout /db/postgresql/10/data/server.key -subj "/CN=postgres"
+chown postgres:postgres /db/postgresql/10/data/server.*
+chmod 600 /db/postgresql/10/data/server.key
+
+
+## Sign PostgreSQL-server key with CA private key
+openssl x509 -req -in /db/postgresql/10/data/server.csr -text -days 365 -CA /root/ssl/mike-rootCA.crt -CAkey /root/ssl/mike-rootCA.key -CAcreateserial -out /db/postgresql/10/data/server.crt
+
+chown postgres:postgres /db/postgresql/10/data/server.crt
+
+## Create root cert = PostgreSQL-server cert + CA cert
+cat /db/postgresql/10/data/server.crt  /root/ssl/mike-rootCA.crt > /db/postgresql/10/data/root.crt
+chown postgres:postgres /db/postgresql/10/data/root.crt
+
+####################################################################################################################
+####################################################################################################################
+
+
+
+## UPDATE pg_hba.conf for repmgr
 echo "
 #### REPMGR ########################################################
-local   replication   repmgr                         trust
-host    replication   repmgr    192.168.56.101/32    trust
-host    replication   repmgr    192.168.56.102/32    trust
-host	replication   repmgr    192.168.56.103/32    trust
-host    replication   repmgr    192.168.56.104/32    trust
+local   	replication   repmgr                         md5
+hostssl   	replication   repmgr    192.168.56.101/32    md5
+hostssl    	replication   repmgr    192.168.56.102/32    md5
+hostssl		replication   repmgr    192.168.56.103/32    md5
+hostssl    	replication   repmgr    192.168.56.104/32    md5
 
-local   repmgr        repmgr                         trust
-host    repmgr        repmgr    192.168.56.101/32    trust
-host    repmgr        repmgr    192.168.56.102/32    trust
-host    repmgr	      repmgr    192.168.56.103/32    trust
-host    repmgr        repmgr    192.168.56.104/32    trust" >> /db/postgresql/10/data/pg_hba.conf
+local   	repmgr        repmgr                         md5
+hostssl    	repmgr        repmgr    192.168.56.101/32    md5
+hostssl    	repmgr        repmgr    192.168.56.102/32    md5
+hostssl    	repmgr	      repmgr    192.168.56.103/32    md5
+hostssl	    	repmgr        repmgr    192.168.56.104/32    md5" >> /db/postgresql/10/data/pg_hba.conf
+
+## REMOVE peer from pg_hba.conf
+sed -i -e 's/local   all             all                                     peer/local   all             postgres                                     peer/g' /db/postgresql/10/data/pg_hba.conf
+
+## REMOVE peer from pg_hba.conf
+sed -i -e 's/local   replication     all/#local   replication     all/g' /db/postgresql/10/data/pg_hba.conf
+sed -i -e 's/host   replication     all/#host   replication     all/g' /db/postgresql/10/data/pg_hba.conf
+
+## ADD PGPASSS
+echo "
+192.168.56.101:5432:replication:repmgr:testing
+192.168.56.101:5432:repmgr:repmgr:testing
+192.168.56.102:5432:replication:repmgr:testing
+192.168.56.102:5432:repmgr:repmgr:testing
+192.168.56.103:5432:replication:repmgr:testing
+192.168.56.103:5432:repmgr:repmgr:testing
+192.168.56.104:5432:replication:repmgr:testing
+192.168.56.104:5432:repmgr:repmgr:testing
+192.168.56.105:5432:replication:repmgr:testing
+192.168.56.105:5432:repmgr:repmgr:testing
+192.168.56.106:5432:replication:repmgr:testing
+192.168.56.106:5432:repmgr:repmgr:testing" >> /var/lib/pgsql/.pgpass
+
+## update pgpass permissions
+chmod 600 /var/lib/pgsql/.pgpass
+chown postgres:postgres /var/lib/pgsql/.pgpass
+
 
 
 ## UPDATE HOSTS FILE
@@ -77,7 +142,9 @@ echo "
 192.168.56.101 node-1
 192.168.56.102 node-2
 192.168.56.103 node-3
-192.168.56.103 node-4" >> /etc/hosts
+192.168.56.104 node-4
+192.168.56.105 node-5
+192.168.56.106 node-6" >> /etc/hosts
 
 
 ## CREATE PGSQL_PROFILE
@@ -104,7 +171,7 @@ if [ "$1" -eq "1" ] ; then
 systemctl enable postgresql-10.service
 systemctl start postgresql-10.service
 
-sudo -u postgres psql -c "create user repmgr superuser; "
+sudo -u postgres psql -c "create user repmgr superuser password 'testing' ; "
 sudo -u postgres psql -c "create database repmgr owner repmgr; "
 
 

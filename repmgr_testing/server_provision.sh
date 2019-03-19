@@ -48,15 +48,18 @@ archive_command = '/bin/true' " >> /db/postgresql/10/postgresql.conf
 ## UPDATE pg_hba.conf
 echo "
 #### REPMGR ########################################################
-local   replication   repmgr                         trust
-host    replication   repmgr    192.168.56.101/32    trust
-host    replication   repmgr    192.168.56.102/32    trust
-host	replication   repmgr    192.168.56.103/32    trust
+local   replication   repmgr                         md5
+host    replication   repmgr    192.168.56.101/32    md5
+host    replication   repmgr    192.168.56.102/32    md5
+host	replication   repmgr    192.168.56.103/32    md5
 
-local   repmgr        repmgr                         trust
-host    repmgr        repmgr    192.168.56.101/32    trust
-host    repmgr        repmgr    192.168.56.102/32    trust
-host    repmgr	      repmgr    192.168.56.103/32    trust" >> /db/postgresql/10/pg_hba.conf
+local   repmgr        repmgr                         md5
+host    repmgr        repmgr    192.168.56.101/32    md5
+host    repmgr        repmgr    192.168.56.102/32    md5
+host    repmgr	      repmgr    192.168.56.103/32    md5" >> /db/postgresql/10/pg_hba.conf
+
+## REMOVE peer from pg_hba.conf
+sed -i -e 's/peer/md5/g' /db/postgresql/10/pg_hba.conf
 
 
 ## UPDATE HOSTS FILE
@@ -79,7 +82,7 @@ export PATH=/usr/pgsql-10/bin:/usr/pgsql-10/lib:/usr/bin:/bin:/sbin:/usr/sbin:/u
 ## PostgreSQL data location
 export PGPORT=5432
 export PGDATA=/db/postgresql/10
-#export PS1=$LOGNAME:'$PWD>'
+export PS1=\$LOGNAME:'\$PWD>'
 " >> /var/lib/pgsql/.pgsql_profile
 chown postgres:postgres /var/lib/pgsql/.pgsql_profile
 
@@ -95,7 +98,7 @@ systemctl start postgresql-10.service
 sudo -u postgres -H bash << EOF
 
 # Put your current script commands here
-psql -c "create user repmgr superuser; "
+psql -c "create user repmgr superuser password 'test' ; "
 psql -c "create database repmgr owner repmgr; "
 
 EOF
