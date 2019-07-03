@@ -25,7 +25,7 @@ wget  https://getgrav.org/download/skeletons/learn2-with-git-sync-site/1.2.0/gra
 
 ## TRANSFER FILES TO /var/www/html
 unzip grav-skeleton-learn2-versioned-docs-with-git-sync-site-beta.zip
-mv /opt/grav-skeleton-learn2-versioned-docs-with-git-sync-site-beta/{.[!.],}* /var/www/html
+mv /opt/grav-skeleton-learn2-with-git-sync-site/{.[!.],}*  /var/www/html
 
 ## DISABLE SELINUX
 sed -i 's/enforcing/disabled/g' /etc/selinux/config

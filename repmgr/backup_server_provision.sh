@@ -10,10 +10,13 @@ chmod 777 /home/vagrant
 yum -y install https://download.postgresql.org/pub/repos/yum/10/redhat/rhel-7-x86_64/pgdg-centos10-10-2.noarch.rpm  epel-release
 
 ## INSTALL UTILITIES
-yum -y install vim ntp
+yum -y install vim
 
 ## INSTALL POSTGRES
 yum -y install postgresql10 postgresql10-server postgresql10-libs postgresql10-contrib postgresql10-devel
+
+## INSTALL REPMANAGER
+yum -y install repmgr10
 
 ## CHANGE DEFAULT DATA DIRECTORY
 mkdir -p /db/postgresql/10/data
@@ -23,74 +26,50 @@ chmod -R 0700 /db
 
 ## CREATE LOG FILE LOCATION
 mkdir -p /log/postgresql/10
+touch /log/postgresql/repmgr_event_notification.log
 chown -R postgres:postgres /log
 chmod -R 0744 /log
 
 
-## CREATE OVERIDING SYSTEMD FILE > POSTGRESQL
+## CREATE OVERIDING SYSTEMD FILE
 echo ".include /lib/systemd/system/postgresql-10.service
 [Service]
 Environment=PGDATA=/db/postgresql/10/data" >> /etc/systemd/system/postgresql-10.service
 
-
 ## INITIALISE POSTGRES
 /usr/pgsql-10/bin/postgresql-10-setup initdb
-
-
-################################################################################################
-## CREATE SSL CERTIFICATES (self-signed RootCA + Server) 
-################################################################################################
-
-## CREATE CA DIRECTORY #######################
-mkdir /root/ssl
-
-## rootCA.key
-openssl genrsa -out /root/ssl/mike-rootCA.key 2048
-chmod 640 /root/ssl/mike-rootCA.key
-
-## rootCA.crt
-openssl req -x509 -new -key /root/ssl/mike-rootCA.key -days 10000 -subj "/C=UK/ST=Scotland/L=Edinburgh/O=test/CN=node-$1"  -out /root/ssl/mike-rootCA.crt
-
-
-### CONFIGURE POSTGRESQL SERVER (as user postgres)  #####
-
-## Create postgres server key and signing request
-openssl req -new -nodes -text -out /db/postgresql/10/data/server.csr -keyout /db/postgresql/10/data/server.key -subj "/CN=postgres"
-chown postgres:postgres /db/postgresql/10/data/server.*
-chmod 600 /db/postgresql/10/data/server.key
-
-## Sign PostgreSQL-server key with CA private key
-openssl x509 -req -in /db/postgresql/10/data/server.csr -text -days 365 -CA /root/ssl/mike-rootCA.crt -CAkey /root/ssl/mike-rootCA.key -CAcreateserial -out /db/postgresql/10/data/server.crt
-
-chown postgres:postgres /db/postgresql/10/data/server.crt
-
-## Create root cert = PostgreSQL-server cert + CA cert
-cat /db/postgresql/10/data/server.crt  /root/ssl/mike-rootCA.crt > /db/postgresql/10/data/root.crt
-chown postgres:postgres /db/postgresql/10/data/root.crt
-
-####################################################################################################################
-####################################################################################################################
-
-
 
 #UPDATE postgresql.conf CONFIGS
 echo "
 ## UPDATED SETTINGS
 listen_addresses = '*'
-ssl = on
-ssl_ca_file = 'root.crt'
-#archive_mode = on
-#archive_command = '/bin/true'" >> /db/postgresql/10/data/postgresql.conf
+archive_mode = on
+archive_command = '/bin/true'
+shared_preload_libraries = 'repmgr'" >> /db/postgresql/10/data/postgresql.conf
+
+## UPDATE pg_hba.conf
+echo "
+#### REPMGR ########################################################
+local   replication   repmgr                         trust
+host    replication   repmgr    192.168.56.101/32    trust
+host    replication   repmgr    192.168.56.102/32    trust
+host	replication   repmgr    192.168.56.103/32    trust
+host    replication   repmgr    192.168.56.104/32    trust
+
+local   repmgr        repmgr                         trust
+host    repmgr        repmgr    192.168.56.101/32    trust
+host    repmgr        repmgr    192.168.56.102/32    trust
+host    repmgr	      repmgr    192.168.56.103/32    trust
+host    repmgr        repmgr    192.168.56.104/32    trust" >> /db/postgresql/10/data/pg_hba.conf
+
 
 ## UPDATE HOSTS FILE
 echo "
-##  TESTING
+## REPMGR TESTING
 192.168.56.101 node-1
 192.168.56.102 node-2
 192.168.56.103 node-3
-192.168.56.104 node-4
-192.168.56.105 node-5
-192.168.56.106 node-6" >> /etc/hosts
+192.168.56.103 node-4" >> /etc/hosts
 
 
 ## CREATE PGSQL_PROFILE
@@ -112,12 +91,92 @@ chown postgres:postgres /var/lib/pgsql/.pgsql_profile
 
 
 ## START POSTGRES IF MASTER + CREATE REPMGR DB AND USER
+if [ "$1" -eq "1" ] ; then
+
 systemctl enable postgresql-10.service
 systemctl start postgresql-10.service
 
-sudo -u postgres psql -c "create user mike login password 'jocasta' ; "
-sudo -u postgres psql -c "create database mike owner mike; "
+sudo -u postgres psql -c "create user repmgr superuser; "
+sudo -u postgres psql -c "create database repmgr owner repmgr; "
 
+
+fi
+
+
+## ADD REPMGR USER, DATABASE and CONFIG FILE
+
+touch /etc/repmgr.conf
+chown postgres:postgres /etc/repmgr.conf
+
+sudo -u postgres -H bash << EOF
+
+# Put your current script commands here
+
+echo "node_id=$1
+node_name=node-$1
+conninfo='host=192.168.56.10$1 user=repmgr dbname=repmgr connect_timeout=2'
+data_directory='/db/postgresql/10/data'
+pg_bindir='/usr/pgsql-10/bin'
+use_replication_slots=true
+
+log_file=/log/postgresql/repmgr.log
+
+service_start_command = 'sudo systemctl start postgresql-10'
+service_stop_command = 'sudo systemctl stop postgresql-10'
+service_restart_command = 'sudo systemctl restart postgresql-10'
+service_reload_command = 'sudo systemctl reload postgresql-10'
+
+## repmgrd ########
+failover=automatic
+promote_command='/usr/bin/repmgr standby promote  --log-to-file'
+follow_command='/usr/bin/repmgr standby follow  --log-to-file --upstream-node-id=%n'
+monitoring_history=yes
+monitor_interval_secs=2  ## default 2
+
+event_notification_command='/etc/repmgr/scripts/repmgr_event_notification.sh %n %e %s \"%t\" \"%d\" %p \"%c\" \"%a\" '  " >> /etc/repmgr.conf
+
+EOF
+
+
+## ADD Event Notification Script for REPMGR
+mkdir /etc/repmgr/scripts
+cat << 'EOF' > /etc/repmgr/scripts/repmgr_event_notification.sh
+#!/bin/bash
+
+echo "$1 $2 $3 $4 $5 $6 $7 $8 $9" >> /log/postgresql/repmgr_event_notification.log
+
+EOF
+
+chmod 744 /etc/repmgr/scripts/repmgr_event_notification.sh
+chown postgres:postgres /etc/repmgr/scripts/repmgr_event_notification.sh
+
+
+## ALLOW SYSTEMD PERMISSIONS FOR REPMGR / POSTGRES
+
+touch /etc/sudoers.d/postgres
+echo "postgres ALL = NOPASSWD: /usr/bin/systemctl stop postgresql-10, \
+/usr/bin/systemctl start postgresql-10, \
+/usr/bin/systemctl restart postgresql-10, \
+/usr/bin/systemctl reload postgresql-10 " >> /etc/sudoers.d/postgres
+chmod 440 /etc/sudoers.d/postgres
+
+
+## REGISTER PRIMARY ( OR CLONE AND REGISTER STANDBY )
+if [ "$1" -eq "1" ] ; then
+
+sudo -u postgres  /usr/pgsql-10/bin/repmgr primary register
+
+else
+
+sudo -u postgres mv /db/postgresql/10 /db/postgresql/10.old
+sudo -u postgres  /usr/pgsql-10/bin/repmgr -h 192.168.56.101 -U repmgr -d repmgr standby clone
+
+systemctl enable postgresql-10.service
+systemctl start postgresql-10.service
+
+sudo -u postgres  /usr/pgsql-10/bin/repmgr standby register
+
+fi
 
 
 ## REINSTATE VAGRANT HOME FOLDER PERMISSIONS
@@ -168,7 +227,7 @@ echo "Host *
 	StrictHostKeyChecking no" >> /var/lib/pgsql/.ssh/config
 
 ## ADD PUBLIC KEY TO AUTHORISED KEYS
-for f in 5 6
+for f in 1 2 3 4
 do
 
 echo "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDSQFjgxsqBhx4wpUcyvcRjoeJbL7aS0Ynm6LrbBYORfl6+8nYOPByP0WkSMu311L/hGgivSrCIXjKM19h2hOfwXzxER7b/76dAVf3AZVJ/R1Ge3U8K7yQEyxMeQRllhF+NNk3iSkq6Awi0Vm3satDO0ps0rxMmrNvtQioqN7eDHMbKPV07CKHME822KlLfZw2YeVPSnYo4eAjY6sUjzWwzpNkw4KEgOEghhDGj1yWz+wLemXkRJ3YnbA7+pWE31rl5MaCVNETSjpVfg/1EnwLv+Z5U75CPhLIaALvM4JKipncEL3q5EXTAoGdzXo7+CAaxfDL5j23JXLtuzEEGcKrd postgres@node-$f" >>  /var/lib/pgsql/.ssh/authorized_keys
@@ -185,11 +244,6 @@ chmod 644 /var/lib/pgsql/.ssh/authorized_keys
 chmod 400 /var/lib/pgsql/.ssh/config
 sudo /sbin/restorecon -r /var/lib/pgsql/.ssh
 
-
-## SYNC THE SERVER CLOCK
-systemctl enable ntpd
-ntpdate pool.ntp.org
-systemctl start ntpd
 
 
 
