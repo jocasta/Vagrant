@@ -99,5 +99,10 @@ ntpdate pool.ntp.org
 systemctl start ntpd
 
 
+## ADD A CRON to UPDATE THE CLOCK EVERY 5 MINS
+(crontab -l ; echo "*/2 * * * * /sbin/ntpdate -u pool.ntp.org") | crontab -
+
+
+
 
 exit
