@@ -1,0 +1,7 @@
+--- 
+- 
+  name: "Add repository"
+  yum_repository: 
+    baseurl: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+    description: "PostgreSQL YUM repo"
+    name: PostgreSQL

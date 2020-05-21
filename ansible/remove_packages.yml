@@ -1,0 +1,18 @@
+---
+
+## TEST REMOVE PACKAGES
+
+
+- hosts: test
+  gather_facts: False
+
+  tasks:
+    - name: Remove Packages
+      yum:
+        name: "{{ packages }}"
+        state: absent
+      vars:
+        packages:
+        - zip
+        - vim
+
