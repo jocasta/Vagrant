@@ -1,0 +1,16 @@
+[allservers]
+node-1
+node-2
+node-3
+node-4 
+
+[web]
+node-1
+node-4
+
+[db]
+node-2
+node-3
+
+[test]
+node-4

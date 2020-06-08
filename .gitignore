@@ -7,6 +7,8 @@
 !*.sh
 !README.md
 !*.yml
+!hosts*
+!ansible.cfg
 # .... Even if they are in subdirectories
 !*/
 
