@@ -1,0 +1,9 @@
+---
+# file: create_ros_base_template.yml
+- hosts: "{{ target }}"
+  gather_facts: False
+  remote_user: root
+  roles:
+  - { role: postgresql_add_repo }
+  - { role: influxdata_add_repo }
+
