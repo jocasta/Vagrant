@@ -1,0 +1,13 @@
+---
+
+## TEST DISABLE SELINUX
+
+
+- hosts: test
+  gather_facts: False
+
+  tasks:
+    - name: Switch Off SELinux
+      selinux:
+        state: disabled
+

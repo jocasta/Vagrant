@@ -1,0 +1,18 @@
+---
+
+## TEST INSTALL PACKAGES
+
+
+- hosts: test
+  gather_facts: False
+
+  tasks:
+    - name: Install Packages
+      yum:
+        name: "{{ packages }}"
+        state: present
+      vars:
+        packages:
+        - zip
+        - vim
+
