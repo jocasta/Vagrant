@@ -18,16 +18,21 @@ config.hostsupdater.remove_on_suspend = false
                 node.vm.provision 'shell', inline: "echo #{ssh_pub_key} >> /root/.ssh/authorized_keys"
           
 
+disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-#{i}.vdi"
+
+
                 node.vm.provider :virtualbox do |v|
                         v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
                         v.customize ["modifyvm", :id, "--memory", 1024]
                         v.customize ["modifyvm", :id, "--name", "node-#{i}"]
                         v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+                       unless FileTest.exist?(disk)
+                        v.customize ["createhd", "--filename", disk, "--size", 30 * 1024]
+                        v.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "hdd", "--medium", disk]
+                      end
+end
                 end
 
 
         end
 end
-
-end
-

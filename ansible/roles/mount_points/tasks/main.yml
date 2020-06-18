@@ -1,0 +1,28 @@
+---
+
+## CREATE IMITATION MOUNT POUNTS
+
+- name: Create /db mount
+  file:
+    path: /db
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create /log mount
+  file:
+    path: /log
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create /dbtemp mount
+  file:
+    path: /dbtemp
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
