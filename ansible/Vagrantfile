@@ -27,6 +27,7 @@ dbtemp_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-dbtemp-#{i}.vdi"
                         v.customize ["modifyvm", :id, "--memory", 1024]
                         v.customize ["modifyvm", :id, "--name", "node-#{i}"]
                         v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+                        unless FileTest.exist?(db_disk)
                         v.customize ["storagectl", :id, "--name", "SAS Controller", "--add", "sas", '--portcount', 4]
                         v.customize ["createhd", "--filename", db_disk, "--size", 5 * 1024]
                         v.customize ["createhd", "--filename", log_disk, "--size", 5 * 1024]
@@ -34,6 +35,7 @@ dbtemp_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-dbtemp-#{i}.vdi"
                         v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 1, "--type", "hdd", "--medium", db_disk]
                         v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 2, "--type", "hdd", "--medium", log_disk]
                         v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 3, "--type", "hdd", "--medium", dbtemp_disk]
+                        end
                   end
                 end
 

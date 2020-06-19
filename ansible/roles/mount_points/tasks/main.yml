@@ -2,27 +2,44 @@
 
 ## CREATE IMITATION MOUNT POUNTS
 
-- name: Create /db mount
+- name: Create a ext4 filesystem on all disks
+  filesystem:
+    fstype: ext4
+    dev: /dev/sdb
+  filesystem:
+    fstype: ext4
+    dev: /dev/sdc
+
+
+- name: Create directories 
   file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0755
+  with_items:
+    - /db
+    - /log
+    - /dbtemp
+
+- name: Mount folder
+  mount:
     path: /db
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+    src: /dev/sdb
+    fstype: ext4
+    state: mounted
+  mount:
+  ⦙ path: /log
+  ⦙ src: /dev/sdc
+  ⦙ fstype: ext4
+  ⦙ state: mounted
+  mount:
+  ⦙ path: /dbtemp
+  ⦙ src: /dev/sdd
+  ⦙ fstype: ext4
+  ⦙ state: mounted
 
-- name: Create /log mount
-  file:
-    path: /log
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
 
-- name: Create /dbtemp mount
-  file:
-    path: /dbtemp
-    state: directory
-    owner: root
-    group: root
-    mode: '0755'
+
 
