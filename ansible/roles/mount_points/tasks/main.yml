@@ -5,10 +5,11 @@
 - name: Create a ext4 filesystem on all disks
   filesystem:
     fstype: ext4
-    dev: /dev/sdb
-  filesystem:
-    fstype: ext4
-    dev: /dev/sdc
+    dev: "{{ item }}"
+  with_items:
+    - /dev/sdb
+    - /dev/sdc
+    - /dev/sdd
 
 
 - name: Create directories 
@@ -23,23 +24,26 @@
     - /log
     - /dbtemp
 
-- name: Mount folder
+
+- name: Mount db folder
   mount:
     path: /db
     src: /dev/sdb
     fstype: ext4
     state: mounted
+
+
+- name: Mount log folder
   mount:
-  ⦙ path: /log
-  ⦙ src: /dev/sdc
-  ⦙ fstype: ext4
-  ⦙ state: mounted
+    path: /log
+    src: /dev/sdc
+    fstype: ext4
+    state: mounted
+
+- name: Mount dbtemp folder
   mount:
-  ⦙ path: /dbtemp
-  ⦙ src: /dev/sdd
-  ⦙ fstype: ext4
-  ⦙ state: mounted
-
-
-
+    path: /dbtemp
+    src: /dev/sdd
+    fstype: ext4
+    state: mounted
 
