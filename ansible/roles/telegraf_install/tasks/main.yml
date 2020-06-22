@@ -1,11 +1,10 @@
 ---
 
-  - name: Install  .pgsql_profile
-    template:
-      src=templates/pgsql_profile.j2
-      dest="{{ postgres_home }}/.pgsql_profile"
-      owner="{{ postgres_owner }}"
-      group="{{ postgres_owner }}"
-      mode=644
-      backup=yes
-    tags: ['user_profile']
+  tasks:
+  - name: Install PostgreSQL Packages
+  ⦙ ⦙ yum:
+  ⦙ ⦙ ⦙ name: "{{ packages }}"
+  ⦙ ⦙ ⦙ state: present
+  ⦙ ⦙ vars:
+  ⦙ ⦙ ⦙ packages:
+        - telegraf

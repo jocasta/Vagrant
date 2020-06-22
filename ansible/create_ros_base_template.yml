@@ -7,3 +7,4 @@
   - { role: postgresql_add_repo }
   - { role: influxdata_add_repo }
   - { role: mount_points }
+  - { role: telegraf_install }

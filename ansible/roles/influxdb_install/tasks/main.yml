@@ -1,0 +1,22 @@
+---
+
+- name: install the latest version of influxdb
+  yum:
+    name: influxdb
+    state: latest
+
+- name: enable and start influxdb
+  systemd:
+    name: influxdb
+    state: started
+    enabled: yes
+
+- name: Create database using custom credentials
+  influxdb_database:
+      hostname: localhost
+      username: mike
+      password: jocasta
+      database_name: mike_test
+
+
+
