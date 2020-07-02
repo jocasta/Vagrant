@@ -1,12 +1,9 @@
 ---
-# file: create_ros_base_template.yml
+# file: telegraf_install_test.yml
 - hosts: "{{ target }}"
   gather_facts: False
   remote_user: root
   roles:
-  - { role: postgresql_add_repo }
-  - { role: influxdata_add_repo }
-  - { role: mount_points }
   - { role: telegraf_install }
   vars_files:
   - group_vars/all.yml

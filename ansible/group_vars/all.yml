@@ -1,0 +1,22 @@
+# Defaults
+target: localhost
+pg_ver: 12
+pg_short_ver: "{{ pg_ver | replace('.','')}}" 
+postgres_owner: "postgres"
+barman_owner: "barman"
+postgres_home: "/var/lib/pgsql"
+data_mount: /db
+temp_mount: /dbtemp
+log_mount: /log
+data_dir: "{{ data_mount }}/PostgreSQL/{{ pg_ver }}/data"
+temp_dir: "{{ temp_mount }}/{{ pg_ver }}"
+log_dir: "{{ log_mount }}"
+pg_port: "5432"
+
+
+# TELEGRAF
+influxdb_database: "metrics"
+influxdb_user: "dbmon"
+influxdb_password: "jocasta"
+influxdb_connection: "http://192.168.56.104:8086"
+

@@ -4,13 +4,10 @@ node-2
 node-3
 node-4 
 
-[web]
-node-1
+[influx]
 node-4
 
-[db]
+[postgres]
 node-2
 node-3
-
-[test]
 node-4

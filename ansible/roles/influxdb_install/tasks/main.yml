@@ -11,12 +11,19 @@
     state: started
     enabled: yes
 
-- name: Create database using custom credentials
-  influxdb_database:
-      hostname: localhost
-      username: mike
-      password: jocasta
-      database_name: mike_test
+# CREATE DATABSE
+- name: Create metrics database for storing postgres server info
+  shell:
+    cmd: influx -execute 'create database metrics with DURATION 2d'
 
+# CREATE USER
+- name: Create influxdb user for telegraf 
+  shell:
+    cmd: influx -execute "create user dbmon with password 'jocasta' "
+
+# GRANT USER PRIVILEGES
+- name: 
+  shell:
+    cmd: influx -execute 'grant write on metrics to dbmon'
 
 
