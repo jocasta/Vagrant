@@ -19,10 +19,16 @@
         group: postgres
         mode: 0744
 
-    - name: Remove old Barman package for local backups
+    - name: Remove old Barman & python psycopg2 packages for local backups
       yum:
-        name: barman
+        name: "{{ packages }}"
         state: absent
+      vars:
+        packages:
+        - barman
+        - python-psycopg2
+        - python2-psycopg2
+        - python-barman
 
     - name: Install barman-cli for wal streaming
       yum:
@@ -38,7 +44,7 @@
         state: present
       notify: Reload PostgreSQL
 
-    - name: Create rails user, set MD5-hashed password, grant privs
+    - name: Create streaming_barman user, set MD5-hashed password, grant privs
       postgresql_user:
         name: streaming_barman
         password: md59543f1d82624df2b31672ec0f7050460

@@ -20,7 +20,7 @@
         path: /db/PostgreSQL/{{version}}/data/postgresql.conf
         backup: yes
         regexp: "^archive_command"
-        line: "archive_command = '/bin/true' "
+        line: "archive_command = 'barman-wal-archive em-vrgi-mana03.prodev.ros.gov.uk {{ inventory_hostname }} %p' "
         state: present
       notify: Reload PostgreSQL
 
