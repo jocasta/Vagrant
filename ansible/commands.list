@@ -1,0 +1,18 @@
+
+# (1) Create RoS Base Template
+
+# (2) Add all hostnames and IPs to /etc/host on all VMs
+
+ansible-playbook local_DNS_hostfile.yml -u root -i hosts
+
+# (3) Create Influxdb Server
+
+ansible-playbook playbooks/setup_influxdb.yml -i hosts -e "target=influx"
+
+# (4) Create PostgreSQL Master
+
+# (5) Create Barman Server
+
+# (6) Create Grafana Server
+
+
