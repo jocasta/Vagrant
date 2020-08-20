@@ -1,0 +1,9 @@
+---
+
+# file: test_barman_ssh_provision
+
+- hosts: node-2
+  gather_facts: False
+  remote_user: root
+  roles:
+  - { role: barman_add_postgres_key }

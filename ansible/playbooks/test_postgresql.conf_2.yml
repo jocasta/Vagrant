@@ -1,0 +1,33 @@
+---
+- hosts: node-1
+  remote_user: root
+  gather_facts: no
+  become: yes
+
+  tasks:
+
+    - name: Find postgresql.conf
+      command: bash -c "ls -1 /db/PostgreSQL/ | sort -r | head -1"
+      register: version
+    - set_fact: version='{{version.stdout}}'
+    - file:
+        path: /db/PostgreSQL/{{version}}/data/old_configs
+        state: directory
+        owner: postgres
+        group: postgres
+        mode: 0744
+    - lineinfile:
+        path: /db/PostgreSQL/{{version}}/data/postgresql.conf
+        backup: yes
+        regexp: "^archive_command"
+        line: "archive_command = 'barman-wal-archive em-vrgi-mana03.prodev.ros.gov.uk {{ inventory_hostname }} %p' "
+        state: present
+      notify: Reload PostgreSQL
+
+    - name: Move backup to old_config directory
+      shell: mv /db/PostgreSQL/{{version}}/data/*~  /db/PostgreSQL/{{version}}/data/old_configs
+
+  handlers:
+  - name: Reload PostgreSQL
+    command: "systemctl reload postgresql*"
+

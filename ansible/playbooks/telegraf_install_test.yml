@@ -1,0 +1,9 @@
+---
+# file: telegraf_install_test.yml
+- hosts: "{{ target }}"
+  gather_facts: False
+  remote_user: root
+  roles:
+  - { role: telegraf_install }
+  vars_files:
+  - group_vars/all.yml

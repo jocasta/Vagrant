@@ -1,0 +1,18 @@
+---
+- hosts: node-1
+  remote_user: root
+  gather_facts: no
+  become: yes
+
+  tasks:
+
+    - name: Exchange key pairs
+      fetch:
+        src: "/var/lib/pgsql/.ssh/id_rsa.pub"
+        dest: "buffer/{{inventory_hostname}}-id_rsa.pub"
+        flat: yes
+
+  handlers:
+  - name: Reload PostgreSQL
+    command: "systemctl reload postgresql*"
+
