@@ -1,13 +1,10 @@
-[allservers]
-node-1 ansible_ssh_host=192.168.56.101
-node-2 ansible_ssh_host=192.168.56.102
-node-3 ansible_ssh_host=192.168.56.103
-node-4 ansible_ssh_host=192.168.56.104
-
 [influx]
 node-4 ansible_ssh_host=192.168.56.104
 
 [postgres]
 node-1 ansible_ssh_host=192.168.56.101
-node-2 ansible_ssh_host=192.168.56.102
 node-3 ansible_ssh_host=192.168.56.103
+node-4 ansible_ssh_host=192.168.56.104
+
+[barman]
+node-2 ansible_ssh_host=192.168.56.102

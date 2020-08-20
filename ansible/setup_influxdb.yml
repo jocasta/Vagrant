@@ -1,8 +1,0 @@
----
-# file: setup_influxdb.yml
-- hosts: "{{ target }}"
-  gather_facts: False
-  remote_user: root
-  roles:
-  - { role: influxdata_add_repo }
-  - { role: influxdb_install }
