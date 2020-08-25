@@ -1,0 +1,36 @@
+[Unit]
+Description=PostgreSQL {{ pg_ver }} database server
+After=syslog.target
+After=network.target
+
+[Service]
+Type=forking
+
+User={{ postgres_owner }}
+Group={{ postgres_owner }}
+
+# Note: avoid inserting whitespace in these Environment= lines, or you may
+# break postgresql-setup.
+
+# Location of database directory
+Environment=PGDATA={{ data_dir }}
+
+# Where to send early-startup messages from the server (before the logging
+# options of postgresql.conf take effect)
+# This is normally controlled by the global default set by systemd
+# StandardOutput=syslog
+
+# Disable OOM kill on the postmaster
+OOMScoreAdjust=-1000
+
+ExecStartPre=/usr/pgsql-{{ pg_ver }}/bin/postgresql-{{ pg_ver }}-check-db-dir ${PGDATA}
+ExecStart=/usr/pgsql-{{ pg_ver }}/bin/pg_ctl start -D ${PGDATA} -s -w -t 300
+ExecStop=/usr/pgsql-{{ pg_ver }}/bin/pg_ctl stop -D ${PGDATA} -s -m fast
+ExecReload=/usr/pgsql-{{ pg_ver }}/bin/pg_ctl reload -D ${PGDATA} -s
+
+# Give a reasonable amount of time for the server to start up/shut down
+TimeoutSec=300
+
+[Install]
+WantedBy=multi-user.target
+

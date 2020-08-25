@@ -1,0 +1,14 @@
+---
+- hosts: "{{ target }}"
+  remote_user: root
+  gather_facts: no
+  become: yes
+
+  tasks:
+
+- name: Create rosdbmon user and grant pg_monitor
+    postgresql_user:
+      name: rosdbmon
+      groups:
+      - pg_monitor
+

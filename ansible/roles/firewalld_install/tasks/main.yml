@@ -1,0 +1,18 @@
+---
+
+
+
+# FIREWALLD
+  - name: Install Firewalld
+    yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+      - firewalld
+
+  - name: Make sure Firewalld is running
+    systemd:
+      name: firewalld
+      state: started
+

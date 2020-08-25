@@ -1,0 +1,11 @@
+---
+# file: create_primary.yml
+- hosts: "{{ target }}"
+  remote_user: root
+  gather_facts: yes
+  roles:
+  - { role: postgresql_install, tags: ['postgresql_install','postgresql_primary'] }
+  - { role: postgresql_primary, tags: ['postgresql_primary','configure_primary'] }
+  vars_files:
+    - group_vars/all.yml
+
