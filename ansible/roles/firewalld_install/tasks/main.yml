@@ -15,4 +15,5 @@
     systemd:
       name: firewalld
       state: started
+      enabled: yes
 
