@@ -1,0 +1,55 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+
+# If you don't want the plugin to remove the host entry
+# with halt / suspend > then add this to Vagrantfile
+#config.hostsupdater.remove_on_suspend = false
+
+## SETTINGS FOR HOSTMANAGER PLUGIN
+config.hostmanager.enabled = true
+config.hostmanager.manage_host = true
+config.hostmanager.manage_guest = true
+config.hostmanager.ignore_private_ip = false
+config.hostmanager.include_offline = true
+
+
+
+## LOOP THROUGH AND CREATE MULTIPLE SERVERS
+(1..2).each do |i|
+
+## SET HOSTNAME
+if i == 1
+  name = "ansible-master"
+elsif i == 2
+  name = "postgres-node"
+end
+
+
+config.vm.define "#{name}" do |node|
+   node.vm.box = "centos/7"
+   node.vm.hostname = "#{name}"
+   node.vm.network :private_network, ip: "192.168.56.10#{i}"
+                    
+ 
+    ## PROVISION HOSTS
+    if i == 2
+       config.vm.provision "ansible" do |ansible|
+         ansible.playbook = "provision_host.yml"
+    end
+   end
+
+     node.vm.provider :virtualbox do |v|
+         v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+         v.customize ["modifyvm", :id, "--memory", 1024]
+         v.customize ["modifyvm", :id, "--cpus", 2]
+         v.customize ["modifyvm", :id, "--name", "#{name}"]
+      end
+
+end
+        
+end
+
+end

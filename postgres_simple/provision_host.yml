@@ -1,0 +1,36 @@
+---
+- hosts: all
+  remote_user: vagrant
+  gather_facts: no
+  become: yes
+
+  tasks:
+
+  - name: Create Ansible User
+    user:
+        name: ansible
+        createhome: yes
+
+  - name: Create sudoers file
+    copy:
+      dest: "/etc/sudoers.d/ansible"
+      content: "%ansible ALL=(ALL) NOPASSWD: ALL"
+      mode: '0440'
+
+  - name: Set authorized key from local ansible user
+    authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+  - name: upgrade all packages
+    yum: 
+      name: "*" 
+      state: latest
+
+
+  - name: Install PostgreSQL Centos Repository
+    yum:
+      name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      state: present
+    when: "'postgres' in inventory_hostname"
