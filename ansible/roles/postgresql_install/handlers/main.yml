@@ -1,9 +1,0 @@
----
-# file: roles/postgresql_install/handlers/main.yml
-
-- name: Restart Firewalld
-  service:
-    name: firewalld
-    state: restarted
-
-

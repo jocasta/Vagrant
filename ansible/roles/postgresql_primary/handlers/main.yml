@@ -1,8 +1,0 @@
----
-# file: roles/postgresql_primary/handlers/main.yml
-
-- name: Restart PostgreSQL
-  service:
-    name: postgresql-{{ pg_ver }}
-    state: restarted
-
