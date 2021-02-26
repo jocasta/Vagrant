@@ -11,6 +11,15 @@
         name: ansible
         createhome: yes
 
+  - name: copy ansible .ssh directory to the remote server
+    copy:
+      src: .ssh
+      dest: /home/ansible/
+      owner: ansible
+      group: ansible
+      mode: 0700
+    when: "'ansible' in inventory_hostname"
+
   - name: Create sudoers file
     copy:
       dest: "/etc/sudoers.d/ansible"
@@ -23,14 +32,69 @@
       state: present
       key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
-  - name: upgrade all packages
-    yum: 
-      name: "*" 
-      state: latest
+  - name: Set authorized key from local mike user
+    authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
 
+  - name: Set authorized key from pre-defined ansible user
+    authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '.ssh/id_rsa.pub') }}"
+    when: "'ansible' not in inventory_hostname"
+
+  - name: upgrade all packages
+    yum:
+      name: "*"
+      state: latest
 
   - name: Install PostgreSQL Centos Repository
     yum:
       name: https://download.postgresql.org/pub/repos/yum/reporpms/EL-7-x86_64/pgdg-redhat-repo-latest.noarch.rpm
       state: present
-    when: "'postgres' in inventory_hostname"
+    when: "'ansible' not in inventory_hostname"
+       
+#  when: ("'postgres' in inventory_hostname") or ("'bouncer' in inventory_hostname")
+
+
+  - name: Install epel Repository
+    yum_repository:
+      name: EPEL
+      description: epel
+      file: external_repos
+      state: present
+      baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+      gpgcheck: true
+      gpgkey: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+
+  - name: install ansible-master required Packages
+    yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+        - git
+        - vim
+        - ansible  
+    when: "'ansible' in inventory_hostname"
+
+  - name: install non ansible-master Packages
+    yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+        - vim
+    when: "'ansible' not in inventory_hostname"
+
+
+  - name: Clone Ansible Repo from Github
+    ansible.builtin.git:
+      repo: git@github.com:jocasta/ansible.git
+      dest: /home/ansible/ansible
+      accept_hostkey: yes
+    become_user: ansible
+    when: "'ansible' in inventory_hostname"
+
