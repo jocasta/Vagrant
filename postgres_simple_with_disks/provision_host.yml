@@ -1,0 +1,111 @@
+---
+- hosts: all
+  remote_user: vagrant
+  gather_facts: no
+  become: yes
+
+  tasks:
+
+  - name: Create Ansible User
+    user:
+        name: ansible
+        createhome: yes
+
+  - name: copy ansible .ssh directory to the remote server
+    copy:
+      src: .ssh
+      dest: /home/ansible/
+      owner: ansible
+      group: ansible
+      mode: 0700
+    when: "'ansible' in inventory_hostname"
+
+  - name: Create sudoers file
+    copy:
+      dest: "/etc/sudoers.d/ansible"
+      content: "%ansible ALL=(ALL) NOPASSWD: ALL"
+      mode: '0440'
+
+  - name: Set authorized key from local mike user
+    authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"
+
+  - name: Add authorized key from pre-defined ansible user to non-master hosts
+    authorized_key:
+      user: ansible
+      state: present
+      key: "{{ lookup('file', '.ssh/id_rsa.pub') }}"
+    when: "'ansible' not in inventory_hostname"
+
+  - name: Install epel Repository
+    yum_repository:
+      name: EPEL
+      description: epel
+      file: external_repos
+      state: present
+      baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+      gpgcheck: true
+      gpgkey: https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+
+  - name: Install ansible Repository for latest stable release
+    yum_repository:
+      name: ansible
+      description: ansible
+      file: external_repos
+      state: present
+      baseurl: https://releases.ansible.com/ansible/rpm/release/epel-7-$basearch/
+      gpgcheck: true
+      gpgkey: https://releases.ansible.com/keys/RPM-GPG-KEY-ansible-release.pub
+
+#  - name: upgrade all packages
+#    yum:
+#      name: "*"
+#      state: latest
+
+  - name: install ansible-master required Packages
+    yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+        - git
+        - vim
+        - ansible  
+    when: "'ansible' in inventory_hostname"
+
+  - name: install non ansible-master Packages
+    yum:
+      name: "{{ packages }}"
+      state: present
+    vars:
+      packages:
+        - vim
+        - git
+    when: "'ansible' not in inventory_hostname"
+
+
+  - name: Clone Ansible Repo from Github
+    ansible.builtin.git:
+      repo: git@github.com:jocasta/ansible.git
+      dest: /home/ansible/ansible
+      accept_hostkey: yes
+    become_user: ansible
+    when: "'ansible' in inventory_hostname"
+
+## Remove the known_host entry from the local machine
+## This will prevent > REMOTE HOST IDENTIFICATION HAS CHANGED!
+## When using ssh to the test nodes
+
+  - name: Remove known host entry from master
+    become_user: mike
+    lineinfile:
+      path: ~/.ssh/known_hosts
+      regexp: "{{ item }}"
+      state: absent
+    with_items:
+    - "^ansible-master"
+    - "^postgres-node"
+    delegate_to: 127.0.0.1
+
