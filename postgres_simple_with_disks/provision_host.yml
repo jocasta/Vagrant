@@ -85,6 +85,11 @@
         - git
     when: "'ansible' not in inventory_hostname"
 
+  - name: Make sure firewalld is running
+    ansible.builtin.systemd:
+      state: started
+      name: firewalld
+
 
   - name: Clone Ansible Repo from Github
     ansible.builtin.git:
@@ -118,5 +123,6 @@
       regexp: "{{ item }}"
       state: absent
     with_items:
-    - "192.168.72"
+    - "^ansible"
+    - "^postgres"
     delegate_to: 127.0.0.1
