@@ -94,9 +94,22 @@
     become_user: ansible
     when: "'ansible' in inventory_hostname"
 
+  - name: Create vimrc file
+    ansible.builtin.lineinfile:
+      path: /home/ansible/.vimrc
+      owner: ansible
+      group: ansible
+      mode: '0644'
+      line: "autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab"
+      create: yes
+    when: "'ansible' in inventory_hostname"
+
 ## Remove the known_host entry from the local machine
 ## This will prevent > REMOTE HOST IDENTIFICATION HAS CHANGED!
 ## When using ssh to the test nodes
+#
+## With each new Mini vagrant project you will need to
+## Change the IP RANGE
 
   - name: Remove known host entry from master
     become_user: mike
@@ -105,7 +118,5 @@
       regexp: "{{ item }}"
       state: absent
     with_items:
-    - "^ansible-master"
-    - "^postgres-node"
+    - "192.168.72"
     delegate_to: 127.0.0.1
-
