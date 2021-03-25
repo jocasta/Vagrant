@@ -59,10 +59,10 @@
       gpgcheck: true
       gpgkey: https://releases.ansible.com/keys/RPM-GPG-KEY-ansible-release.pub
 
-#  - name: upgrade all packages
-#    yum:
-#      name: "*"
-#      state: latest
+  - name: upgrade all packages
+    yum:
+      name: "*"
+      state: latest
 
   - name: install ansible-master required Packages
     yum:
@@ -82,13 +82,7 @@
     vars:
       packages:
         - vim
-        - git
     when: "'ansible' not in inventory_hostname"
-
-  - name: Make sure firewalld is running
-    ansible.builtin.systemd:
-      state: started
-      name: firewalld
 
 
   - name: Clone Ansible Repo from Github
@@ -99,22 +93,9 @@
     become_user: ansible
     when: "'ansible' in inventory_hostname"
 
-  - name: Create vimrc file
-    ansible.builtin.lineinfile:
-      path: /home/ansible/.vimrc
-      owner: ansible
-      group: ansible
-      mode: '0644'
-      line: "autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab"
-      create: yes
-    when: "'ansible' in inventory_hostname"
-
 ## Remove the known_host entry from the local machine
 ## This will prevent > REMOTE HOST IDENTIFICATION HAS CHANGED!
 ## When using ssh to the test nodes
-#
-## With each new Mini vagrant project you will need to
-## Change the IP RANGE
 
   - name: Remove known host entry from master
     become_user: mike
@@ -123,6 +104,7 @@
       regexp: "{{ item }}"
       state: absent
     with_items:
-    - "^ansible"
-    - "^postgres"
+    - "^ansible-master"
+    - "^postgres-node"
     delegate_to: 127.0.0.1
+

@@ -1,6 +1,7 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
+
 Vagrant.configure("2") do |config|
 
 
@@ -17,39 +18,66 @@ config.hostmanager.include_offline = true
 
 
 
+###########################################
+#                                         #
+#     CREATE ANSIBLE MASTER               #
+#                                         #
+###########################################
+
+  config.vm.define "ansible-master" do |ans|
+    ans.vm.box = "centos/7"
+    ans.vm.hostname = "ansible-master"
+    ans.vm.network :private_network, ip: "192.168.76.2"
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "provision_host.yml"
+  end
+
+  ans.vm.provider :virtualbox do |v|
+    v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    v.customize ["modifyvm", :id, "--memory", 1024]
+    v.customize ["modifyvm", :id, "--cpus", 1]
+    v.customize ["modifyvm", :id, "--name", "ansible-master"]
+  end
+
+end
+
+
+###########################################
+#                                         #
+#     CREATE POSTGRES NODES               #
+#                                         #
+###########################################
+
+
 ## LOOP THROUGH AND CREATE MULTIPLE SERVERS
 (1..2).each do |i|
+        config.vm.define "postgres-node-#{i}" do |node|
+                node.vm.box = "centos/7"
+                node.vm.hostname = "postgres-node-#{i}"
+                node.vm.network :private_network, ip: "192.168.76.10#{i}"
 
-## SET HOSTNAME
-if i == 1
-  name = "ansible-master"
-elsif i == 2
-  name = "postgres-node"
-end
+## SET DISK PATHS
+db_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-db-#{i}.vdi"
+log_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-log-#{i}.vdi"
+dbtemp_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-dbtemp-#{i}.vdi"
 
+                node.vm.provider :virtualbox do |v|
+                        v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+                        v.customize ["modifyvm", :id, "--memory", 1024]
+                        v.customize ["modifyvm", :id, "--name", "node-#{i}"]
+                        v.customize ["modifyvm", :id, "--cableconnected1", "on"]
+                        unless FileTest.exist?(db_disk)
+                        v.customize ["storagectl", :id, "--name", "SAS Controller", "--add", "sas", '--portcount', 4]
+                        v.customize ["createhd", "--filename", db_disk, "--size", 5 * 1024]
+                        v.customize ["createhd", "--filename", log_disk, "--size", 5 * 1024]
+                        v.customize ["createhd", "--filename", dbtemp_disk, "--size", 5 * 1024]
+                        v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 1, "--type", "hdd", "--medium", db_disk]
+                        v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 2, "--type", "hdd", "--medium", log_disk]
+                        v.customize ["storageattach", :id, "--storagectl", "SAS Controller", "--port", 3, "--type", "hdd", "--medium", dbtemp_disk]
+                        end
+                  end
+                end
 
-config.vm.define "#{name}" do |node|
-   node.vm.box = "centos/7"
-   node.vm.hostname = "#{name}"
-   node.vm.network :private_network, ip: "192.168.56.10#{i}"
-                    
- 
-    ## PROVISION HOSTS
-    if i == 2
-       config.vm.provision "ansible" do |ansible|
-         ansible.playbook = "provision_host.yml"
-    end
-   end
-
-     node.vm.provider :virtualbox do |v|
-         v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-         v.customize ["modifyvm", :id, "--memory", 1024]
-         v.customize ["modifyvm", :id, "--cpus", 1]
-         v.customize ["modifyvm", :id, "--name", "#{name}"]
-      end
-
-end
-        
-end
-
+        end
 end

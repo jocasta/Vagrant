@@ -27,7 +27,7 @@ config.hostmanager.include_offline = true
   config.vm.define "ansible-master" do |ans|
     ans.vm.box = "centos/7"
     ans.vm.hostname = "ansible-master"
-    ans.vm.network :private_network, ip: "192.168.76.2"
+    ans.vm.network :private_network, ip: "192.170.76.2"
 
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "provision_host.yml"
@@ -45,26 +45,53 @@ end
 
 ###########################################
 #                                         #
+#     CREATE PGBOUNCER NODES              #
+#                                         #
+###########################################
+
+(1..1).each do |i|
+  config.vm.define "pgbouncer-#{i}" do |ans|
+    ans.vm.box = "centos/7"
+    ans.vm.hostname = "pgbouncer-#{i}"
+    ans.vm.network :private_network, ip: "192.170.76.10#{i}"
+
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "provision_host.yml"
+  end
+
+  ans.vm.provider :virtualbox do |v|
+    v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    v.customize ["modifyvm", :id, "--memory", 1024]
+    v.customize ["modifyvm", :id, "--cpus", 1]
+    v.customize ["modifyvm", :id, "--name", "pgbouncer-#{i}"]
+  end
+
+end
+
+end
+
+###########################################
+#                                         #
 #     CREATE POSTGRES NODES               #
 #                                         #
 ###########################################
 
 
 ## LOOP THROUGH AND CREATE MULTIPLE SERVERS
-(1..2).each do |i|
+(1..1).each do |i|
         config.vm.define "postgres-node-#{i}" do |node|
                 node.vm.box = "centos/7"
                 node.vm.hostname = "postgres-node-#{i}"
-                node.vm.network :private_network, ip: "192.168.76.10#{i}"
+                node.vm.network :private_network, ip: "192.170.76.20#{i}"
 
 ## SET DISK PATHS
-db_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-db-#{i}.vdi"
-log_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-log-#{i}.vdi"
-dbtemp_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-dbtemp-#{i}.vdi"
+db_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-db-hap-pbouncer-#{i}.vdi"
+log_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-log-hap-pbouncer-#{i}.vdi"
+dbtemp_disk = "/home/mike/Vagrant_VM_disk/Vagrant_disk-dbtemp-hap-pbouncer-#{i}.vdi"
 
                 node.vm.provider :virtualbox do |v|
                         v.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
-                        v.customize ["modifyvm", :id, "--memory", 1024]
+                        v.customize ["modifyvm", :id, "--memory", 2048]
                         v.customize ["modifyvm", :id, "--name", "node-#{i}"]
                         v.customize ["modifyvm", :id, "--cableconnected1", "on"]
                         unless FileTest.exist?(db_disk)
